@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#fbfaf6" />
+  <title>Retrieve to Act</title>
+  <meta name="description" content="R2A: test-time motion primitive graph retrieval that makes frozen Vision-Language-Action policies robust to out-of-distribution execution contexts." />
+  <meta property="og:title" content="Retrieve to Act: Motion Primitive Graph Retrieval for Robust VLA Execution" />
+  <meta property="og:description" content="Test-time motion primitive graph retrieval for frozen VLA policies. No finetuning of the base policy." />
+  <meta property="og:image" content="assets/overview.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%236a4fd4'/%3E%3Cg%20stroke='%23fff'%20stroke-width='2'%20stroke-linecap='round'%20opacity='.85'%3E%3Cpath%20d='M8%2022%2015%2010M15%2010%2025%2015M8%2022%2022%2024M25%2015%2022%2024'/%3E%3C/g%3E%3Cg%20fill='%23fff'%3E%3Ccircle%20cx='8'%20cy='22'%20r='3.2'/%3E%3Ccircle%20cx='15'%20cy='10'%20r='3.2'/%3E%3Ccircle%20cx='22'%20cy='24'%20r='3.2'/%3E%3C/g%3E%3Ccircle%20cx='25'%20cy='15'%20r='3.6'%20fill='%23fb6544'%20stroke='%23fff'%20stroke-width='1.2'/%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=STIX+Two+Text:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="progress"></div>
+
+  <nav class="side-nav" aria-label="Contents">
+    <div class="cap">Contents</div>
+    <ol>
+      <li><a href="#abstract"><span>01</span>Abstract</a></li>
+      <li><a href="#method"><span>02</span>Method</a></li>
+      <li><a href="#simulation"><span>03</span>Simulation</a></li>
+      <li><a href="#real-world"><span>04</span>Real world</a></li>
+      <li><a href="#analysis"><span>05</span>Analysis</a></li>
+      <li><a href="#citation"><span>06</span>Citation</a></li>
+    </ol>
+  </nav>
+
+  <header class="hero">
+    <div class="wrap">
+      <div class="chips">
+        <span class="chip hot">Under review</span>
+        <span class="chip">Vision-Language-Action</span>
+        <span class="chip">Test-time retrieval</span>
+        <span class="chip">OOD robustness</span>
+      </div>
+      <h1>
+        <span class="r2a">R2A</span>: Retrieve to Act
+        <span class="sub">Motion primitive graph retrieval for <b>robust VLA execution</b></span>
+      </h1>
+      <p class="authors">Anonymous authors &middot; paper under double-blind review</p>
+      <div class="links">
+        <a class="btn off" href="#" aria-disabled="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          Paper (soon)
+        </a>
+        <a class="btn" href="https://anonymous.4open.science/r/r2a" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>
+          Code
+        </a>
+        <a class="btn ghost" href="#method">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7.3 11 16.7 7M7.3 13l9.4 4"/></svg>
+          Interactive demo
+        </a>
+        <a class="btn ghost" href="#citation">BibTeX</a>
+      </div>
+
+      <div class="stats reveal">
+        <div class="stat"><div class="n">89.0<small>+11.9</small></div><div class="l">LIBERO-Plus average, GR00T N1.7 (77.1 without R2A)</div></div>
+        <div class="stat"><div class="n">75.9<small>+41.7</small></div><div class="l">RoboTwin2.0-Plus, Robot Initial States, &pi;<sub>0.5</sub></div></div>
+        <div class="stat"><div class="n">80<small>+50</small></div><div class="l">Real-world Banana2Pot, shifted start (30 without R2A)</div></div>
+        <div class="stat"><div class="n">159<small style="color:var(--muted)">ms</small></div><div class="l">Per-step latency, vs 138 ms for the base policy</div></div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="wrap reveal">
+      <figure class="card pad">
+        <img src="assets/overview.jpg" alt="R2A overview: offline Graph-Index over training demonstrations, then test-time rectification, GNN retrieval and harmonization." />
+        <figcaption><b>Overview of R2A.</b> Offline, Graph-Index builds a motion primitive graph from successful demos. At test time a diffusion model first rectifies an OOD start state. Then at every step the R2A-Retriever locates the rollout in the graph and retrieves a reference motion, and Harmonize blends it into the VLA prediction through a gate.</figcaption>
+      </figure>
+    </section>
+
+    <section id="abstract" class="wrap">
+      <div class="sec-head reveal">
+        <div class="kicker">01 &middot; Abstract</div>
+        <h2>The policy knows what to do. Under a visual shift it forgets how to move.</h2>
+      </div>
+      <div class="lede reveal">
+        <p>VLA policies generalize across instructions, but small out-of-distribution (OOD) changes at execution time, such as a moved camera, a new texture or different lighting, push their actions off safe trajectories. Test-time methods that suppress these visual cues ignore the kinematic priors in the policy's own training data, which such shifts leave intact.</p>
+        <p><b>Retrieve to Act (R2A)</b> turns successful training demonstrations into an offline motion primitive graph. At test time a query-conditioned GNN locates the rollout in the graph and retrieves compatible future motion, and a learned per-dimension gate blends it into the frozen VLA's actions. On GR00T N1.7, &pi;<sub>0.5</sub> and StableVLA it raises success on LIBERO-Plus, RoboTwin2.0-Plus and a real Aloha robot, with no finetuning.</p>
+      </div>
+    </section>
+
+    <section id="method" class="wrap">
+      <div class="sec-head reveal">
+        <div class="kicker">02 &middot; Method</div>
+        <h2>Inside one rollout: query, messages, retrieval, harmonization</h2>
+      </div>
+      <p class="lede reveal" style="margin-bottom:22px">A logged rollout of GR00T N1.7 with R2A. Pick a shift: in each, GR00T alone fails. The teal cloud is the task's motion primitive graph, drawn into the camera. At each check the query forms at the gripper, messages travel the graph's edges, the top 8 segments light up with their logged scores, and the policy, retrieved and executed chunks appear.</p>
+
+      <div class="card viewer reveal" id="viewer">
+        <div class="vhead">
+          <div class="tabs" id="v-tabs" style="margin:0"></div>
+          <div class="vtask"><span class="chip hot" id="v-cat">Camera Viewpoints</span><span id="v-instr" class="muted"></span></div>
+        </div>
+        <div class="vbody">
+          <div class="vstage">
+            <canvas id="v-canvas" aria-label="Rollout frame with the projected motion primitive graph and retrieval overlays"></canvas>
+            <div class="vbadge" id="v-step">step 0</div>
+            <div class="vphase" id="v-phase">Loading</div>
+            <div class="vinset" id="v-inset">
+              <canvas id="v-base"></canvas>
+              <div class="vfail" aria-hidden="true">FAIL</div>
+              <div class="vinset-cap"><b>GR00T N1.7 alone</b><span id="v-base-state">same scene</span></div>
+            </div>
+            <div class="vend" id="v-end"></div>
+          </div>
+          <aside class="vside">
+            <ol class="steps" id="v-steps">
+              <li data-k="query"><span class="i">1</span><span>Kinematic query <i>Q<sub>t</sub></i> at the gripper</span></li>
+              <li data-k="mp"><span class="i">2</span><span>Message passing over the graph, <span id="v-hop">layer 1 of 3</span></span></li>
+              <li data-k="topk"><span class="i">3</span><span>Top-8 segments and their scores</span></li>
+              <li data-k="harm"><span class="i">4</span><span>Harmonize: gate the reference into the policy</span></li>
+              <li data-k="exec"><span class="i">5</span><span>Execute the chunk, query again</span></li>
+            </ol>
+            <div class="eq" id="v-eq"><div id="v-tex"></div></div>
+            <div>
+              <div class="vlabel">Retrieved segments <span class="muted" id="v-ck"></span></div>
+              <div class="cands" id="v-cands"></div>
+            </div>
+            <div>
+              <div class="vlabel">Gate <i>S<sub>t</sub></i> per dimension, 0 to 0.5</div>
+              <div class="gates" id="v-gates"></div>
+            </div>
+            <div class="meter"><div class="row"><span>Estimated progress <i>p&#770;<sub>t</sub></i></span><b id="v-p">&ndash;</b></div><div class="bar"><i id="v-pbar" style="background:var(--coral)"></i></div></div>
+          </aside>
+        </div>
+        <div class="legend">
+          <span><i class="dot" style="background:var(--teal)"></i>Graph node</span>
+          <span><i class="dot" style="background:var(--coral)"></i>Message</span>
+          <span><i style="background:var(--policy)"></i>Policy A<sup>&pi;</sup></span>
+          <span><i style="background:var(--demo)"></i>Retrieved A<sup>ref</sup></span>
+          <span><i style="background:var(--exec)"></i>Executed A<sup>exec</sup></span>
+          <span class="muted">Chunks drawn 4&times; longer</span>
+        </div>
+        <div class="controls">
+          <button class="ctl on" id="v-play" aria-label="Play or pause"><svg viewBox="0 0 24 24" fill="currentColor" id="v-play-ico"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg><span>Pause</span></button>
+          <button class="ctl" id="v-next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 5l9 7-9 7zM16 5h3v14h-3z"/></svg>Next stage</button>
+          <div class="seg" id="v-speed"><button data-s="0.5">0.5&times;</button><button data-s="1" class="on">1&times;</button><button data-s="2">2&times;</button><button data-s="4">4&times;</button></div>
+          <input type="range" id="v-scrub" class="scrub" min="0" max="1" value="0" aria-label="Rollout step" />
+          <button class="ctl on" id="v-detail" title="Animate every retrieval check in full">Every check</button>
+          <button class="ctl on" id="v-graph">Graph</button>
+        </div>
+      </div>
+      <p class="note">All data shown is logged, with two exceptions. The message wave follows real edges outward from the nodes nearest the query, but per-layer activations were not logged. The gate bars are fitted from the logged chunks as the S in A<sup>exec</sup> = A<sup>&pi;</sup> + S &odot; (A<sup>ref</sup> &minus; A<sup>&pi;</sup>).</p>
+
+      <div class="pillars">
+        <div class="pillar t reveal">
+          <canvas class="pill-cv" data-anim="index" aria-hidden="true"></canvas>
+          <div class="k">Offline</div>
+          <h3>Graph-Index</h3>
+          <p>Each demo segment is a node. Temporal edges jump ahead within a demo (&Delta; = 2, 4, 6, 8). Spatial edges join nearby end-effector states across demos, including other tasks.</p>
+        </div>
+        <div class="pillar c reveal">
+          <canvas class="pill-cv" data-anim="retrieve" aria-hidden="true"></canvas>
+          <div class="k">Test time</div>
+          <h3>R2A-Retriever</h3>
+          <p>The query combines the VLA's predicted poses with recent states and actions. Message passing conditioned on it spreads relevance along the graph. The future motion of the top-K nodes fuses into a reference chunk.</p>
+        </div>
+        <div class="pillar g reveal">
+          <canvas class="pill-cv" data-anim="harm" aria-hidden="true"></canvas>
+          <div class="k">Test time</div>
+          <h3>Harmonize</h3>
+          <p>A per-dimension gate corrects the spatial pose where prediction and reference disagree. Gripper commands pass through. Before the first step, a diffusion model moves an OOD start pose back toward the training distribution.</p>
+        </div>
+      </div>
+
+      <figure class="card pad reveal" style="margin-top:26px">
+        <div class="grid2" style="align-items:center">
+          <img src="assets/retrieval-example.jpg" alt="Retrieval example under Sensor Noise with GR00T N1.7 at step 32." style="max-width:460px;margin:0 auto" />
+          <div>
+            <div class="kicker" style="color:var(--demo)">Real retrieval, LIBERO-Plus</div>
+            <h3 style="font-size:26px;margin:8px 0 10px">One query, one retrieved primitive</h3>
+            <p class="muted" style="margin:0">GR00T N1.7 under Sensor Noise, step 32. The query retrieves demo 49, frames 40 to 55, a segment that goes down to the book. Over 8 steps the policy alone moves 2.6 cm down, the demo 8.3 cm, the harmonized action 3.5 cm. The gate moves the action toward the demo but does not replay it. Background shown clean.</p>
+          </div>
+        </div>
+      </figure>
+    </section>
+
+    <section id="simulation" class="wrap">
+      <div class="sec-head reveal">
+        <div class="kicker">03 &middot; Simulation</div>
+        <h2>LIBERO-Plus: seven perturbation categories, three base policies</h2>
+      </div>
+      <div class="card pad reveal">
+        <div class="tabs" id="t1-tabs"></div>
+        <div class="keyrow"><span><i style="background:var(--faint);opacity:.55"></i>Base policy</span><span><i style="background:var(--brand)"></i>+ R2A</span></div>
+        <div class="bars" id="t1-bars"></div>
+        <details>
+          <summary>Full Table 1 with all baselines</summary>
+          <div class="tbl-wrap" id="t1-table"></div>
+        </details>
+      </div>
+      <p class="muted reveal" style="margin-top:14px;font-size:15px">R2A improves all three policies on average, most under Robot Initial States: +49.1 for GR00T N1.7, +48.0 for StableVLA, +21.9 for &pi;<sub>0.5</sub>.</p>
+
+      <div class="grid2" style="margin-top:26px">
+        <div class="reveal">
+          <h3 style="font-size:24px;margin-bottom:6px">Bimanual: RoboTwin2.0-Plus</h3>
+          <p class="muted" style="margin:0 0 12px;font-size:14.5px">On &pi;<sub>0.5</sub>, R2A lifts the average from 56.8 to 66.2 and every category improves. Robot Initial States: 34.2 to 75.9.</p>
+          <div class="card pad"><div class="bars" id="t2-bars"></div></div>
+        </div>
+        <div class="reveal">
+          <h3 style="font-size:24px;margin-bottom:6px">Against other test-time OOD methods</h3>
+          <p class="muted" style="margin:0 0 12px;font-size:14.5px">LIBERO-10 averages. VLS uses VLM-generated rewards, SDN pushes away from negative references, ICL adds text descriptions of retrieved observations.</p>
+          <div class="card pad">
+            <div class="tabs" id="t3-tabs"></div>
+            <div class="bars" id="t3-bars"></div>
+          </div>
+        </div>
+      </div>
+      <details class="reveal">
+        <summary>Full Table 3, per category</summary>
+        <div class="tbl-wrap" id="t3-table"></div>
+      </details>
+    </section>
+
+    <section id="real-world" class="wrap">
+      <div class="sec-head reveal">
+        <div class="kicker">04 &middot; Real world</div>
+        <h2>Aloha with GR00T N1.7, robot started from a shifted pose</h2>
+      </div>
+      <div class="grid2">
+        <div class="pair reveal">
+          <figure><img src="assets/banana2pot-original.jpg" alt="Banana2Pot, original initial state" /><span class="lbl" style="background:var(--exec)">Original</span></figure>
+          <figure><img src="assets/banana2pot-perturbed.jpg" alt="Banana2Pot, perturbed initial state" /><span class="lbl" style="background:var(--policy)">Perturbed</span></figure>
+        </div>
+        <div class="reveal">
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Task</th><th>Method</th><th>Base</th><th>Robot init.</th></tr></thead>
+              <tbody>
+                <tr><td rowspan="3">Banana2Pot</td><td>GR00T N1.7</td><td>60.0</td><td>30.0</td></tr>
+                <tr><td>+ SDN</td><td>75.0</td><td>55.0</td></tr>
+                <tr class="ours"><td>+ R2A</td><td>80.0<sub class="up">+20.0</sub></td><td>80.0<sub class="up">+50.0</sub></td></tr>
+                <tr><td rowspan="3">Cube2Drawer</td><td>GR00T N1.7</td><td>55.0</td><td>10.0</td></tr>
+                <tr><td>+ SDN</td><td>70.0</td><td>30.0</td></tr>
+                <tr class="ours"><td>+ R2A</td><td>85.0<sub class="up">+30.0</sub></td><td>45.0<sub class="up">+35.0</sub></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="muted" style="font-size:14.5px;margin-top:12px">The shifted start breaks the base policy and SDN. R2A holds Banana2Pot at its in-distribution rate and lifts Cube2Drawer from 10 to 45. It also helps without a shift.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="analysis" class="wrap">
+      <div class="sec-head reveal">
+        <div class="kicker">05 &middot; Analysis</div>
+        <h2>Ablation and inference time</h2>
+      </div>
+      <div class="grid2">
+        <div class="card pad reveal">
+          <h3 style="font-size:22px;margin-bottom:4px">Ablation, GR00T N1.7 on LIBERO-Plus</h3>
+          <p class="muted" style="font-size:14px;margin:0 0 14px">Without harmonization, replayed motion collapses to 1.2. ISR (initial state rectification) is measured on Robot Initial States only.</p>
+          <div class="bars" id="t5-bars"></div>
+        </div>
+        <div class="card pad reveal">
+          <h3 style="font-size:22px;margin-bottom:4px">Inference time and success, LIBERO-10</h3>
+          <p class="muted" style="font-size:14px;margin:0 0 14px">Per-step inference time, GR00T N1.7. SDN needs detection and segmentation. VLS queries a VLM several times per step.</p>
+          <div class="lat" id="lat-bars"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="citation" class="wrap">
+      <div class="sec-head reveal">
+        <div class="kicker">06 &middot; Citation</div>
+        <h2>BibTeX</h2>
+      </div>
+      <pre class="bib reveal" id="bib"><button class="ctl copy" id="copy">Copy</button>@inproceedings{r2a2027,
+  title     = {Retrieve to Act: Motion Primitive Graph Retrieval for Robust {VLA} Execution},
+  author    = {Anonymous},
+  booktitle = {Under review},
+  year      = {2026}
+}</pre>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">Paper under review. Figures and numbers are from the submission.</div>
+  </footer>
+
+  <script src="results.js"></script>
+  <script src="viewer.js"></script>
+  <script src="pillars.js"></script>
+  <script src="page.js"></script>
+</body>
+</html>
